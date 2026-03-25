@@ -1,0 +1,110 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+
+<script>
+  window.googlePixelId = "68ac7916443036cfd127f96f";
+  var a = document.createElement("script");
+  a.setAttribute("async", "");
+  a.setAttribute("defer", "");
+  a.setAttribute("src", "https://cdn.utmify.com.br/scripts/pixel/pixel-google.js");
+  document.head.appendChild(a);
+</script>
+
+<script>
+(function () {
+  const KEYS = ["utm_source","utm_medium","utm_campaign","utm_content","utm_term","gclid","gbraid","wbraid","msclkid","fbclid","cpf"];
+  const STORE = "__utms__";
+
+  // salva o que vier na URL
+  if (location.search.length > 1) {
+    try { sessionStorage.setItem(STORE, location.search); } catch(_) {}
+  }
+
+  function mergedUTMs() {
+    const cur = new URLSearchParams(location.search.replace(/^\?/, ""));
+    let bak = "";
+    try { bak = (sessionStorage.getItem(STORE) || "").replace(/^\?/, ""); } catch(_) {}
+    const fromStore = new URLSearchParams(bak);
+    for (const k of KEYS) if (!cur.has(k) && fromStore.has(k)) cur.set(k, fromStore.get(k));
+    // ordena para URL estável (evita redirects por ordem diferente)
+    const ordered = new URLSearchParams();
+    for (const [k,v] of Array.from(cur.entries()).sort(([a],[b])=>a.localeCompare(b))) ordered.append(k,v);
+    return ordered;
+  }
+
+  // namespace global
+  window.UTM = window.UTM || {};
+
+  // Reescreve o href de um <a> com as UTMs mescladas (sem navegar)
+  UTM.rewrite = function(anchor) {
+    if (!anchor || !anchor.href) return;
+    const u = new URL(anchor.getAttribute('href'), location.href);
+    const out = new URLSearchParams(u.search);
+    const merged = mergedUTMs();
+    merged.forEach((v,k)=>{ if(!out.has(k)) out.set(k,v); });
+    const final = new URLSearchParams(Array.from(out.entries()).sort(([a],[b])=>a.localeCompare(b)));
+    u.search = final.toString() ? `?${final.toString()}` : "";
+    anchor.href = u.toString();
+  };
+
+  // Navega para uma URL (string ou <a>) ANEXANDO UTMs
+  UTM.go = function(dest) {
+    const href = typeof dest === 'string' ? dest : (dest && dest.href);
+    if (!href) return true; // deixa seguir default se não achou
+    const dummy = document.createElement('a');
+    dummy.href = href;
+    UTM.rewrite(dummy);
+    // se veio um <a>, atualiza o href dele também (pra middle-click funcionar)
+    if (dest && dest.tagName === 'A') dest.href = dummy.href;
+    location.href = dummy.href;
+    return false; // cancela o clique padrão
+  };
+
+  // Opcional: reescreve automaticamente todos <a data-utm-go> ao carregar
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('a[data-utm-go]').forEach(UTM.rewrite);
+  });
+})();
+</script>
+
+ <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Embed Typebot</title>
+
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; }
+    iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+  </style>
+
+
+</head>
+
+<body>
+  <iframe id="embedFrame"></iframe>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const baseUrl = "https://viewer-dbf1-production.up.railway.app/pi";
+
+      // Mescla UTMs da URL com o backup do sessionStorage (caso algum redirect tenha limpado)
+      const params = (window.__mergeUTMs ? window.__mergeUTMs() : new URLSearchParams(window.location.search));
+
+      // monta a URL final do iframe de forma robusta (sem recarregar em loop)
+      const url = new URL(baseUrl);
+      // preserva quaisquer params existentes (caso seu Typebot já tenha algo no query)
+      const current = new URLSearchParams(url.search);
+      params.forEach((v, k) => { if (!current.has(k)) current.set(k, v); });
+      url.search = current.toString() ? `?${current.toString()}` : "";
+
+      const iframe = document.getElementById("embedFrame");
+      if (!iframe.dataset.utmsApplied) {
+        iframe.src = url.toString();
+        iframe.dataset.utmsApplied = "1";
+      }
+
+      console.log("Iframe carregado com:", url.toString());
+    });
+  </script>
+</body>
+</html>
